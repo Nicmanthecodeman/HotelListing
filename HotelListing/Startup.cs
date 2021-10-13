@@ -1,5 +1,7 @@
 using HotelListing.Configurations;
 using HotelListing.Data;
+using HotelListing.IRepository;
+using HotelListing.Repository;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -7,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
+using Newtonsoft.Json;
 
 namespace HotelListing
 {
@@ -26,7 +29,13 @@ namespace HotelListing
                 options.UseSqlServer(Configuration.GetConnectionString("ApplicationDbContext"));
             });
 
-            services.AddControllers();
+            services.AddTransient<IUnitOfWork, UnitOfWork>();
+
+            services.AddControllers()
+                .AddNewtonsoftJson(options => 
+                {
+                    options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+                });
 
             services.AddCors(options => 
             {

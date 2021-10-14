@@ -1,9 +1,9 @@
 using AspNetCoreRateLimit;
-using HotelListing.Configurations;
+using HotelListing.Core;
+using HotelListing.Core.IRepository;
+using HotelListing.Core.Repository;
+using HotelListing.Core.Services;
 using HotelListing.Data;
-using HotelListing.IRepository;
-using HotelListing.Repository;
-using HotelListing.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
@@ -24,10 +24,10 @@ namespace HotelListing
         }
 
         public IConfiguration Configuration { get; }
-                
+
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContext<DatabaseContext>(options => 
+            services.AddDbContext<DatabaseContext>(options =>
             {
                 options.UseSqlServer(Configuration.GetConnectionString("ApplicationDbContext"));
             });
@@ -55,14 +55,14 @@ namespace HotelListing
                     Duration = 120
                 });
             })
-            .AddNewtonsoftJson(options => 
+            .AddNewtonsoftJson(options =>
             {
                 options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
             });
 
-            services.AddCors(options => 
+            services.AddCors(options =>
             {
-                options.AddPolicy("AllowAll", builder => 
+                options.AddPolicy("AllowAll", builder =>
                 {
                     builder.AllowAnyOrigin()
                         .AllowAnyMethod()
@@ -70,7 +70,7 @@ namespace HotelListing
                 });
             });
 
-            services.AddAutoMapper(typeof(MapperInitializer));
+            services.ConfigureAutoMapper();
 
             services.AddSwaggerGen(c =>
             {
@@ -79,16 +79,20 @@ namespace HotelListing
 
             services.ConfigureVersioning();
         }
-        
+
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             if (env.IsDevelopment())
             {
-                app.UseDeveloperExceptionPage();                
+                app.UseDeveloperExceptionPage();
             }
 
             app.UseSwagger();
-            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "HotelListing v1"));
+            app.UseSwaggerUI(options => 
+            {
+                string swaggerJsonBasePath = string.IsNullOrWhiteSpace(options.RoutePrefix) ? "." : "..";
+                options.SwaggerEndpoint($"{swaggerJsonBasePath}/swagger/v1/swagger.json", "Hotel Listing API");
+            });            
 
             app.ConfigureExceptionHandler();
 
@@ -96,7 +100,7 @@ namespace HotelListing
 
             app.UseCors("AllowAll");
 
-            app.UseResponseCaching();            
+            app.UseResponseCaching();
 
             app.UseHttpCacheHeaders();
 

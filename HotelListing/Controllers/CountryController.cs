@@ -2,12 +2,15 @@
 using HotelListing.Data;
 using HotelListing.IRepository;
 using HotelListing.Models;
+using Marvin.Cache.Headers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using X.PagedList;
 
 namespace HotelListing.Controllers
 {
@@ -30,47 +33,34 @@ namespace HotelListing.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Get()
+        [HttpCacheExpiration(CacheLocation = CacheLocation.Public, MaxAge = 60)]
+        [HttpCacheValidation(MustRevalidate = false)]
+        public async Task<IActionResult> Get(
+            [FromQuery] RequestParams requestParams)
         {
-            try
-            {
-                IList<Country> countries = await _unitOfWork.Countries
-                    .GetAll();
+            IPagedList<Country> countries = await _unitOfWork.Countries
+                    .GetAll(requestParams, null);
 
-                IList<CountryDTO> results = _mapper.Map<IList<CountryDTO>>(countries);
+            IList<CountryDTO> results = _mapper.Map<IList<CountryDTO>>(countries);
 
-                return Ok(results);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Something Went Wrong in the {nameof(Get)}");
-                return StatusCode(500, "Internal Server Error. Please Try Again Later.");
-            }
+            return Ok(results);
         }
 
         [HttpGet("{id:int}", Name = "GetCountry")]
         public async Task<IActionResult> Get(int id)
         {
-            try
-            {
-                Country country = await _unitOfWork.Countries
+            Country country = await _unitOfWork.Countries
                     .Get(country => country.Id == id,
-                        new List<string> { "Hotels" });
+                        include: country => country.Include(x => x.Hotels));
 
-                if (country == null)
-                {
-                    return NotFound();
-                }
-
-                CountryDTO result = _mapper.Map<CountryDTO>(country);
-
-                return Ok(result);
-            }
-            catch (Exception ex)
+            if (country == null)
             {
-                _logger.LogError(ex, $"Something Went Wrong in the {nameof(Get)}");
-                return StatusCode(500, "Internal Server Error. Please Try Again Later.");
+                return NotFound();
             }
+
+            CountryDTO result = _mapper.Map<CountryDTO>(country);
+
+            return Ok(result);
         }
 
         [HttpPost]
@@ -86,22 +76,14 @@ namespace HotelListing.Controllers
                 return BadRequest(ModelState);
             }
 
-            try
-            {
-                Country country = _mapper.Map<Country>(countryDTO);
+            Country country = _mapper.Map<Country>(countryDTO);
 
-                await _unitOfWork.Countries
-                    .Insert(country);
+            await _unitOfWork.Countries
+                .Insert(country);
 
-                await _unitOfWork.Save();
+            await _unitOfWork.Save();
 
-                return CreatedAtRoute("GetCountry", new { id = country.Id }, country);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Something Went Wrong!");
-                return StatusCode(500, $"Something Went Catastrophically Wrong!");
-            }
+            return CreatedAtRoute("GetCountry", new { id = country.Id }, country);
         }
 
         [HttpPut("{id:int}")]
@@ -119,31 +101,23 @@ namespace HotelListing.Controllers
                 return BadRequest(ModelState);
             }
 
-            try
-            {
-                Country country = await _unitOfWork.Countries
+            Country country = await _unitOfWork.Countries
                     .Get(country => country.Id == id);
 
-                if (country == null)
-                {
-                    _logger.LogError($"Country not found in {nameof(UpdateCountry)}");
-                    return NotFound();
-                }
-
-                _mapper.Map(countryDTO, country);
-
-                _unitOfWork.Countries
-                    .Update(country);
-
-                await _unitOfWork.Save();
-
-                return NoContent();
-            }
-            catch (Exception ex)
+            if (country == null)
             {
-                _logger.LogError(ex, $"Something Went Wrong in the {nameof(UpdateCountry)}");
-                return StatusCode(500, "Internal Server Error. Please Try Again Later.");
+                _logger.LogError($"Country not found in {nameof(UpdateCountry)}");
+                return NotFound();
             }
+
+            _mapper.Map(countryDTO, country);
+
+            _unitOfWork.Countries
+                .Update(country);
+
+            await _unitOfWork.Save();
+
+            return NoContent();
         }
 
         [HttpDelete("{id:int}")]
@@ -158,29 +132,21 @@ namespace HotelListing.Controllers
                 return ValidationProblem();
             }
 
-            try
-            {
-                Country country = await _unitOfWork.Countries
+            Country country = await _unitOfWork.Countries
                     .Get(country => country.Id == id);
 
-                if (country == null)
-                {
-                    _logger.LogError($"Invalid DELETE attempt in {nameof(DeleteCountry)}");
-                    return NotFound();
-                }
-
-                await _unitOfWork.Countries
-                    .Delete(id);
-
-                await _unitOfWork.Save();
-
-                return NoContent();
-            }
-            catch (Exception ex)
+            if (country == null)
             {
-                _logger.LogError(ex, $"Something Went Wrong in the {nameof(DeleteCountry)}");
-                return StatusCode(500, $"Internal Server Error. Please Try Again Later.");
+                _logger.LogError($"Invalid DELETE attempt in {nameof(DeleteCountry)}");
+                return NotFound();
             }
+
+            await _unitOfWork.Countries
+                .Delete(id);
+
+            await _unitOfWork.Save();
+
+            return NoContent();
         }
     }
 }

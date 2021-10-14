@@ -1,11 +1,14 @@
 ﻿using HotelListing.Data;
 using HotelListing.IRepository;
+using HotelListing.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
+using X.PagedList;
 
 namespace HotelListing.Repository
 {
@@ -33,27 +36,24 @@ namespace HotelListing.Repository
         }
 
         public async Task<T> Get(
-            Expression<Func<T, bool>> filter = null, 
-            List<string> includedProperties = null)
+            Expression<Func<T, bool>> filter = null,
+            Func<IQueryable<T>, IIncludableQueryable<T, object>> include = null)
         {
             IQueryable<T> query = _dbSet;
 
-            if (includedProperties != null)
+            if (include != null)
             {
-                foreach (string includedProperty in includedProperties)
-                {
-                    query = query.Include(includedProperty);
-                }
-            }            
+                query = include(query);
+            }
 
             return await query.AsNoTracking()
                 .FirstOrDefaultAsync(filter);
         }
 
         public async Task<IList<T>> GetAll(
-            Expression<Func<T, bool>> filter = null, 
-            Func<IQueryable<T>, IOrderedQueryable<T>> orderBy = null, 
-            List<string> includedProperties = null)
+            Expression<Func<T, bool>> filter = null,
+            Func<IQueryable<T>, IOrderedQueryable<T>> orderBy = null,
+            Func<IQueryable<T>, IIncludableQueryable<T, object>> include = null)
         {
             IQueryable<T> query = _dbSet;
 
@@ -62,12 +62,9 @@ namespace HotelListing.Repository
                 query = query.Where(filter);
             }
 
-            if (includedProperties != null)
+            if (include != null)
             {
-                foreach (string includedProperty in includedProperties)
-                {
-                    query = query.Include(includedProperty);
-                }
+                query = include(query);
             }
 
             if (orderBy != null)
@@ -93,6 +90,23 @@ namespace HotelListing.Repository
         {
             _dbSet.Attach(entity);
             _db.Entry(entity).State = EntityState.Modified;
+        }
+
+        public async Task<IPagedList<T>> GetAll(
+             RequestParams requestParams,
+            Func<IQueryable<T>, IIncludableQueryable<T, object>> include = null)
+        {
+            IQueryable<T> query = _dbSet;
+
+            if (include != null)
+            {
+                query = include(query);
+            }
+
+            return await query.AsNoTracking()
+                .ToPagedListAsync(
+                requestParams.PageNumber,
+                requestParams.PageSize);
         }
     }
 }

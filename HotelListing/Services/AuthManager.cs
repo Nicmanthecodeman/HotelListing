@@ -71,10 +71,10 @@ namespace HotelListing.Services
             List<Claim> claims)
         {
             IConfiguration jwtSettings = _configuration.GetSection("Jwt");
-            DateTime expiration = DateTime.Now.AddMinutes(Convert.ToDouble(jwtSettings.GetSection("validIssuer").Value));
+            DateTime expiration = DateTime.Now.AddMinutes(Convert.ToDouble(jwtSettings.GetSection("Lifetime").Value));
 
             return new JwtSecurityToken(
-                issuer: jwtSettings.GetSection("validIssuer").Value,
+                issuer: jwtSettings.GetSection("Issuer").Value,
                 claims: claims,
                 expires: expiration,
                 signingCredentials: signingCredentials);

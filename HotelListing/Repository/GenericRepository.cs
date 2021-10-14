@@ -90,8 +90,9 @@ namespace HotelListing.Repository
         }
 
         public void Update(T entity)
-        {            
-            _dbSet.Update(entity);
+        {
+            _dbSet.Attach(entity);
+            _db.Entry(entity).State = EntityState.Modified;
         }
     }
 }

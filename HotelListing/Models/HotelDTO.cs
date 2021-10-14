@@ -13,11 +13,11 @@ namespace HotelListing.Models
         public string Address { get; set; }
 
         [Required]
-        [Range(1,5)]
+        [Range(1, 5)]
         public double Rating { get; set; }
 
-        [Required]        
-        public int CountryId { get; set; }        
+        //[Required]
+        public int CountryId { get; set; }
     }
 
     public class HotelDTO : CreateHotelDTO
@@ -26,5 +26,10 @@ namespace HotelListing.Models
         public int Id { get; set; }
 
         public CountryDTO Country { get; set; }
+    }
+
+    public class UpdateHotelDTO : CreateHotelDTO
+    {
+
     }
 }
